@@ -1,65 +1,277 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, RefreshCw, LogOut, Settings, ExternalLink, Trophy, Flame, Info } from 'lucide-react';
+import Link from 'next/link';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+interface UserData {
+  username: string;
+  cfHandle: string;
+}
+
+interface StatsData {
+  currentBlock: any[];
+  targetRating: number;
+  solvedAtTargetRating: number;
+  dailyGoal: number;
+  currentStreak: number;
+  longestStreak: number;
+  history: Record<string, number>;
+}
+
+export default function Dashboard() {
+  const router = useRouter();
+  const [user, setUser] = useState<UserData | null>(null);
+  const [stats, setStats] = useState<StatsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  const fetchUser = async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (!res.ok) {
+        router.push('/login');
+        return;
+      }
+      const data = await res.json();
+      setUser(data.user);
+      fetchStats();
+    } catch (e) {
+      router.push('/login');
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/problems');
+      const data = await res.json();
+      if (res.ok) setStats(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const syncProgress = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/problems/sync', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setStats(data);
+      } else {
+        console.error('Sync failed:', data.error);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/login');
+  };
+
+  if (loading || !user || !stats) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-950">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
+  const progressPercentage = (stats.solvedAtTargetRating / 50) * 100;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans">
+      <div className="max-w-5xl mx-auto space-y-8">
+        
+        {/* Header Section */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-6">
+          <div>
+            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
+              ChadForce
+            </h1>
+            <p className="text-zinc-400 mt-1">Welcome back, {user.username} ({user.cfHandle})</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Dialog>
+              <DialogTrigger render={<Button variant="outline" size="sm" className="border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white" />}>
+                <Info className="w-4 h-4 mr-2" />
+                About
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px] bg-zinc-900 border-zinc-800 text-zinc-100">
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">About ChadForce</DialogTitle>
+                  <DialogDescription className="text-zinc-400">
+                    Your personal competitive programming tracker.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4 text-sm text-zinc-300">
+                  <p>
+                    ChadForce assigns a daily block of Codeforces problems scaled to your chosen daily goal, distributed as follows:
+                  </p>
+                  <ul className="list-disc pl-5 space-y-2">
+                    <li><strong>50%</strong> at your target rating</li>
+                    <li><strong>30%</strong> at target + 100</li>
+                    <li><strong>20%</strong> at target + 200</li>
+                  </ul>
+                  <p>
+                    Solve 50 problems at your target rating to automatically level up!
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" size="sm" className="border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white" onClick={syncProgress} disabled={syncing}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing...' : 'Sync CF'}
+            </Button>
+            <Link href="/settings">
+              <Button variant="outline" size="icon" className="border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800">
+                <Settings className="w-4 h-4" />
+              </Button>
+            </Link>
+            <Button variant="destructive" size="icon" onClick={handleLogout}>
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
+        </header>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-zinc-400">Current Level</CardDescription>
+              <CardTitle className="text-4xl text-indigo-400">{stats.targetRating}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-zinc-500">Target Rating</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-zinc-400">Current Streak</CardDescription>
+              <div className="flex items-end gap-2">
+                <CardTitle className="text-4xl text-orange-500">{stats.currentStreak ?? 0}</CardTitle>
+                <Flame className="w-6 h-6 text-orange-500 mb-1" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-zinc-500">Longest: {stats.longestStreak ?? 0} days</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-zinc-900 border-zinc-800 md:col-span-1">
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-center">
+                <CardDescription className="text-zinc-400">Level Up Progress</CardDescription>
+                <span className="text-sm font-medium text-cyan-400">{stats.solvedAtTargetRating} / 50</span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Progress value={progressPercentage} className="[&_[data-slot=progress-track]]:h-3 [&_[data-slot=progress-track]]:bg-zinc-800 [&_[data-slot=progress-indicator]]:bg-gradient-to-r [&_[data-slot=progress-indicator]]:from-indigo-500 [&_[data-slot=progress-indicator]]:to-cyan-400" />
+              <p className="text-xs text-zinc-500">Solve {50 - stats.solvedAtTargetRating} more to level up.</p>
+            </CardContent>
+          </Card>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+
+
+        {/* Daily Block */}
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="text-xl text-zinc-100 flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-500" />
+                  Your Active Problem Block
+                </CardTitle>
+                <CardDescription className="text-zinc-400 mt-1">
+                  Solve these {stats.currentBlock?.length || 0} problems. The system strictly enforces the 5:3:2 ratio for {stats.targetRating}, {stats.targetRating + 100}, and {stats.targetRating + 200}.
+                </CardDescription>
+              </div>
+              <Badge variant="secondary" className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-sm px-3 py-1">
+                Daily Goal: {stats.dailyGoal}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!stats.currentBlock || stats.currentBlock.length === 0 ? (
+              <div className="text-center py-12 text-zinc-500">
+                <p>No active block. Click "Sync CF" to generate your first block of problems!</p>
+                <Button onClick={syncProgress} disabled={syncing} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white">
+                  {syncing ? 'Generating...' : 'Generate Block'}
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {stats.currentBlock.map((prob) => {
+                  let ratingColor = "text-zinc-300";
+                  let borderColor = "border-zinc-700";
+                  
+                  if (prob.rating === stats.targetRating) {
+                    ratingColor = "text-green-400";
+                    borderColor = "border-green-500/30";
+                  } else if (prob.rating === stats.targetRating + 100) {
+                    ratingColor = "text-cyan-400";
+                    borderColor = "border-cyan-500/30";
+                  } else if (prob.rating === stats.targetRating + 200) {
+                    ratingColor = "text-purple-400";
+                    borderColor = "border-purple-500/30";
+                  }
+
+                  return (
+                    <a 
+                      key={`${prob.contestId}-${prob.index}`}
+                      href={`https://codeforces.com/problemset/problem/${prob.contestId}/${prob.index}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`block p-4 rounded-xl border ${borderColor} ${prob.solved ? 'bg-zinc-950/20 opacity-60 grayscale' : 'bg-zinc-950/50 hover:bg-zinc-800'} transition-all duration-200 group relative overflow-hidden`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className={`font-bold ${ratingColor} bg-zinc-900 px-2 py-0.5 rounded text-sm`}>
+                          {prob.rating || 'N/A'}
+                        </span>
+                        {prob.solved ? (
+                          <div className="flex items-center gap-1 text-green-500 text-xs font-semibold">
+                            SOLVED
+                          </div>
+                        ) : (
+                          <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 transition-colors" />
+                        )}
+                      </div>
+                      <h3 className={`font-medium ${prob.solved ? 'text-zinc-500 line-through' : 'text-zinc-200'} line-clamp-2`} title={prob.name}>{prob.name}</h3>
+                      <div className="mt-3 text-xs text-zinc-500 font-mono">
+                        {prob.contestId}{prob.index}
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
