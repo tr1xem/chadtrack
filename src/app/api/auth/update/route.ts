@@ -11,6 +11,7 @@ type UpdateFields = {
   friends?: string[];
   currentBlock?: Array<unknown>;
   blockDate?: string | null;
+  unchadMode?: boolean;
 };
 
 export async function POST(req: NextRequest) {
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
     const user = await User.findById(session.userId);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { cfHandle, targetRating, customDailyGoal, friends } = await req.json();
+    const { cfHandle, targetRating, customDailyGoal, friends, unchadMode } = await req.json();
 
     const updateFields: UpdateFields = {};
     let sessionNeedsUpdate = false;
@@ -31,6 +32,11 @@ export async function POST(req: NextRequest) {
       updateFields.cfHandle = cfHandle;
       updateFields.currentBlock = [];
       sessionNeedsUpdate = true;
+    }
+
+    if (unchadMode !== undefined && Boolean(unchadMode) !== user.unchadMode) {
+      updateFields.unchadMode = Boolean(unchadMode);
+      updateFields.currentBlock = [];
     }
 
     if (targetRating) {
@@ -42,10 +48,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (customDailyGoal !== undefined) {
-      if (customDailyGoal === "" || customDailyGoal === null || customDailyGoal === 0) {
-        updateFields.customDailyGoal = null;
-      } else {
-        updateFields.customDailyGoal = Math.max(1, Number(customDailyGoal));
+      let newGoal: number | null = null;
+      if (customDailyGoal !== "" && customDailyGoal !== null && customDailyGoal !== 0) {
+        newGoal = Math.max(1, Number(customDailyGoal));
+      }
+      
+      if (newGoal !== user.customDailyGoal) {
+        updateFields.customDailyGoal = newGoal;
+        updateFields.currentBlock = [];
       }
     }
 

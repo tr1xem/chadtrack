@@ -163,8 +163,8 @@ export async function POST() {
     // Generate new block if needed
     if (needsNewBlock) {
       const { countX, countX100, countX200 } = computeBlockDistribution(dailyGoal);
-      console.log(`[Sync] Generating new block: ${countX} at ${targetRating}, ${countX100} at ${targetRating + 100}, ${countX200} at ${targetRating + 200}`);
-      currentBlock = await getRecommendations(user.cfHandle, targetRating, countX, countX100, countX200);
+      console.log(`[Sync] Generating new block: ${countX} at ${targetRating}, ${countX100} at ${targetRating + 100}, ${countX200} at ${targetRating + 200}, UnchadMode: ${user.unchadMode}`);
+      currentBlock = await getRecommendations(user.cfHandle, targetRating, countX, countX100, countX200, user.unchadMode);
       blockDate = today;
     }
 

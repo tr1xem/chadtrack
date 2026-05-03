@@ -17,6 +17,7 @@ export interface IUser extends Document {
   history: Record<string, number>; // { 'YYYY-MM-DD': count }
   lastStreakDate?: string;
   blockDate?: string; // YYYY-MM-DD when current block was generated
+  unchadMode: boolean;
 }
 
 const UserSchema: Schema = new Schema({
@@ -36,6 +37,7 @@ const UserSchema: Schema = new Schema({
   history: { type: Schema.Types.Mixed, default: {} },
   lastStreakDate: { type: String },
   blockDate: { type: String },
+  unchadMode: { type: Boolean, default: false },
 }, { strict: false }); // Allow saving fields not in schema (prevents stripping during dev HMR)
 
 /**
@@ -47,6 +49,7 @@ export function ensureUserDefaults(user: any) {
   if (!user.history || typeof user.history !== 'object') user.history = {};
   if (!user.currentBlock) user.currentBlock = [];
   if (!Array.isArray(user.friends)) user.friends = [];
+  if (user.unchadMode == null) user.unchadMode = false;
 }
 
 // Force re-register model in dev to pick up schema changes

@@ -45,20 +45,32 @@ export function getSolvedProblemIdentifiers(submissions: Array<{ verdict?: strin
   return solved;
 }
 
-export async function getRecommendations(handle: string, targetRating: number, countX: number, countX100: number, countX200: number) {
+export async function getRecommendations(handle: string, targetRating: number, countX: number, countX100: number, countX200: number, unchadMode: boolean = false) {
   const [submissions, problemsetData] = await Promise.all([
     fetchUserSubmissions(handle),
     fetchProblemset()
   ]);
 
   const solvedSet = getSolvedProblemIdentifiers(submissions);
-  const allProblems = problemsetData.problems;
+  const allProblems = problemsetData.problems as Array<{ contestId: number; index: string; rating?: number; name: string; tags: string[] }>;
 
   // Filter out solved problems and group by rating
   const unsolvedByRating: Record<number, Array<{ contestId: number; index: string; rating?: number }>> = {};
   
   for (const prob of allProblems) {
     if (!prob.rating) continue;
+
+    // Apply Unchad Mode filtering
+    if (unchadMode) {
+      const tags = prob.tags || [];
+      if (prob.rating < 1200) {
+        const forbidden = ['dp', 'graphs', 'trees'];
+        if (tags.some(t => forbidden.includes(t))) continue;
+      } else if (prob.rating === 1300) {
+        if (tags.includes('dp')) continue;
+      }
+    }
+
     const id = `${prob.contestId}-${prob.index}`;
     if (!solvedSet.has(id)) {
       if (!unsolvedByRating[prob.rating]) {

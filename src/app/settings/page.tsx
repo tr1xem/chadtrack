@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const [friends, setFriends] = useState('');
   const [targetRating, setTargetRating] = useState('');
   const [customDailyGoal, setCustomDailyGoal] = useState('');
+  const [unchadMode, setUnchadMode] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -35,6 +36,7 @@ export default function SettingsPage() {
         if (data.user.customDailyGoal) {
           setCustomDailyGoal(data.user.customDailyGoal.toString());
         }
+        setUnchadMode(!!data.user.unchadMode);
       } catch {
         router.push('/login');
       } finally {
@@ -53,7 +55,7 @@ export default function SettingsPage() {
       const res = await fetch('/api/auth/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cfHandle, targetRating, customDailyGoal, friends }),
+        body: JSON.stringify({ cfHandle, targetRating, customDailyGoal, friends, unchadMode }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -153,7 +155,22 @@ export default function SettingsPage() {
                   placeholder="e.g. 10"
                   className="bg-zinc-800 border-zinc-700" 
                 />
-                <p className="text-xs text-zinc-500">Override the dynamic daily goal. Leave blank to let the system decide.</p>
+                <p className="text-xs text-zinc-500">Override the dynamic daily goal. Changing this will invalidate your current block.</p>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
+                <div className="space-y-0.5">
+                  <Label htmlFor="unchadMode" className="text-base font-semibold">Unchad Mode</Label>
+                  <p className="text-sm text-zinc-400">Filter out DP, Graphs, and Trees for lower ratings. Resets current block.</p>
+                </div>
+                <Button 
+                  type="button" 
+                  variant={unchadMode ? "default" : "outline"}
+                  className={unchadMode ? "bg-indigo-600 hover:bg-indigo-700" : "border-zinc-700 text-zinc-400"}
+                  onClick={() => setUnchadMode(!unchadMode)}
+                >
+                  {unchadMode ? 'Enabled' : 'Disabled'}
+                </Button>
               </div>
               
               <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" disabled={saving}>

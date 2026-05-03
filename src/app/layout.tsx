@@ -15,6 +15,9 @@ const robotoMono = Roboto_Mono({
 export const metadata: Metadata = {
   title: "ChadForce",
   description: "Track your Codeforces performance and progress",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
