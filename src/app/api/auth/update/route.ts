@@ -4,6 +4,15 @@ import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import { cookies } from 'next/headers';
 
+type UpdateFields = {
+  cfHandle?: string;
+  targetRating?: number;
+  customDailyGoal?: number | null;
+  friends?: string[];
+  currentBlock?: Array<unknown>;
+  blockDate?: string | null;
+};
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
@@ -13,9 +22,9 @@ export async function POST(req: NextRequest) {
     const user = await User.findById(session.userId);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { cfHandle, targetRating, customDailyGoal } = await req.json();
+    const { cfHandle, targetRating, customDailyGoal, friends } = await req.json();
 
-    const updateFields: Record<string, any> = {};
+    const updateFields: UpdateFields = {};
     let sessionNeedsUpdate = false;
 
     if (cfHandle && cfHandle !== user.cfHandle) {
@@ -38,9 +47,14 @@ export async function POST(req: NextRequest) {
       } else {
         updateFields.customDailyGoal = Math.max(1, Number(customDailyGoal));
       }
-      // Clear block so next sync generates with the new count
-      updateFields.currentBlock = [];
-      updateFields.blockDate = null;
+    }
+
+    if (friends !== undefined) {
+      updateFields.friends = String(friends)
+        .split(',')
+        .map((friend) => friend.trim())
+        .filter(Boolean)
+        .filter((friend, index, arr) => arr.indexOf(friend) === index);
     }
 
     console.log(`[Settings] Updating fields:`, JSON.stringify(updateFields));
@@ -66,9 +80,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'Settings updated successfully' }, {
       headers: { 'Cache-Control': 'no-store' },
     });
-
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Settings Error]', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }
 }

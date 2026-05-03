@@ -4,6 +4,7 @@ export interface IUser extends Document {
   username: string;
   password?: string;
   cfHandle: string;
+  friends: string[];
   targetRating: number;
   solvedAtTargetRating: number;
   lastUpdated: Date;
@@ -22,6 +23,7 @@ const UserSchema: Schema = new Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   cfHandle: { type: String, required: true },
+  friends: { type: [String], default: [] },
   targetRating: { type: Number, default: 900, min: 800 },
   solvedAtTargetRating: { type: Number, default: 0 },
   lastUpdated: { type: Date, default: Date.now },
@@ -44,6 +46,7 @@ export function ensureUserDefaults(user: any) {
   if (user.longestStreak == null) user.longestStreak = 0;
   if (!user.history || typeof user.history !== 'object') user.history = {};
   if (!user.currentBlock) user.currentBlock = [];
+  if (!Array.isArray(user.friends)) user.friends = [];
 }
 
 // Force re-register model in dev to pick up schema changes

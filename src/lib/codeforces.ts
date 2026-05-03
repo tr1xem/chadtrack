@@ -7,6 +7,25 @@ export async function fetchUserSubmissions(handle: string) {
   return data.result;
 }
 
+export async function fetchUserInfo(handle: string) {
+  const res = await fetch(`https://codeforces.com/api/user.info?handles=${handle}`);
+  const data = await res.json();
+  if (data.status !== 'OK') {
+    throw new Error(data.comment || 'Failed to fetch user info');
+  }
+  return data.result?.[0];
+}
+
+export function countSolvedProblems(submissions: Array<{ verdict?: string; problem: { contestId: number; index: string } }>) {
+  const solved = new Set<string>();
+  for (const sub of submissions) {
+    if (sub.verdict === 'OK') {
+      solved.add(`${sub.problem.contestId}-${sub.problem.index}`);
+    }
+  }
+  return solved.size;
+}
+
 export async function fetchProblemset() {
   const res = await fetch('https://codeforces.com/api/problemset.problems');
   const data = await res.json();
@@ -16,7 +35,7 @@ export async function fetchProblemset() {
   return data.result;
 }
 
-export function getSolvedProblemIdentifiers(submissions: any[]) {
+export function getSolvedProblemIdentifiers(submissions: Array<{ verdict?: string; problem: { contestId: number; index: string } }>) {
   const solved = new Set<string>();
   for (const sub of submissions) {
     if (sub.verdict === 'OK') {
@@ -36,7 +55,7 @@ export async function getRecommendations(handle: string, targetRating: number, c
   const allProblems = problemsetData.problems;
 
   // Filter out solved problems and group by rating
-  const unsolvedByRating: Record<number, any[]> = {};
+  const unsolvedByRating: Record<number, Array<{ contestId: number; index: string; rating?: number }>> = {};
   
   for (const prob of allProblems) {
     if (!prob.rating) continue;
@@ -50,7 +69,7 @@ export async function getRecommendations(handle: string, targetRating: number, c
   }
 
   // Helper to get random problems
-  const getRandom = (arr: any[], count: number) => {
+  const getRandom = <T,>(arr: T[], count: number) => {
     if (!arr || arr.length === 0) return [];
     const shuffled = [...arr].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, count);

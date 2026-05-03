@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCw, LogOut, Settings, ExternalLink, Trophy, Flame, Info } from 'lucide-react';
+import { Loader2, RefreshCw, LogOut, Settings, ExternalLink, Trophy, Flame, Info, Users } from 'lucide-react';
 import Link from 'next/link';
 import {
   Dialog,
@@ -22,8 +22,16 @@ interface UserData {
   cfHandle: string;
 }
 
+interface Problem {
+  contestId: number;
+  index: string;
+  rating?: number;
+  name: string;
+  solved?: boolean;
+}
+
 interface StatsData {
-  currentBlock: any[];
+  currentBlock: Problem[];
   targetRating: number;
   solvedAtTargetRating: number;
   dailyGoal: number;
@@ -32,43 +40,66 @@ interface StatsData {
   history: Record<string, number>;
 }
 
+interface LeaderboardRow {
+  handle: string;
+  rating: number | null;
+  maxRating: number | null;
+  rank: string | null;
+  solvedCount: number;
+  isYou: boolean;
+  error?: string;
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState<UserData | null>(null);
   const [stats, setStats] = useState<StatsData | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-
-  useEffect(() => {
-    fetchUser();
-  }, []);
-
-  const fetchUser = async () => {
-    try {
-      const res = await fetch('/api/auth/me');
-      if (!res.ok) {
-        router.push('/login');
-        return;
-      }
-      const data = await res.json();
-      setUser(data.user);
-      fetchStats();
-    } catch (e) {
-      router.push('/login');
-    }
-  };
 
   const fetchStats = async () => {
     try {
       const res = await fetch('/api/problems');
       const data = await res.json();
-      if (res.ok) setStats(data);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+      if (res.ok) return data;
+    } catch (error) {
+      console.error(error);
     }
+    return null;
   };
+
+  const fetchLeaderboard = async () => {
+    try {
+      const res = await fetch('/api/leaderboard');
+      const data = await res.json();
+      if (res.ok) return data.rows as LeaderboardRow[];
+    } catch (error) {
+      console.error(error);
+    }
+    return [];
+  };
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) {
+          router.push('/login');
+          return;
+        }
+        const data = await res.json();
+        setUser(data.user);
+        const [statsData, leaderboardData] = await Promise.all([fetchStats(), fetchLeaderboard()]);
+        if (statsData) setStats(statsData);
+        if (leaderboardData) setLeaderboard(leaderboardData);
+      } catch {
+        router.push('/login');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const syncProgress = async () => {
     setSyncing(true);
@@ -196,6 +227,62 @@ export default function Dashboard() {
           </Card>
         </div>
 
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-xl text-zinc-100 flex items-center gap-2">
+              <Users className="w-5 h-5 text-cyan-400" />
+              Vs Friends
+            </CardTitle>
+            <CardDescription className="text-zinc-400">
+              A simple leaderboard built from your saved Codeforces handles.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {leaderboard.length === 0 ? (
+              <div className="text-center py-10 text-zinc-500">
+                Add friend handles in Settings to populate this leaderboard.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {leaderboard.map((row, index) => (
+                  <div
+                    key={row.handle}
+                    className={`flex flex-col gap-3 rounded-xl border p-4 md:flex-row md:items-center md:justify-between ${row.isYou ? 'border-cyan-500/40 bg-cyan-500/10' : 'border-zinc-800 bg-zinc-950/40'}`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
+                        {index + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-zinc-100">{row.handle}</span>
+                          {row.isYou && <Badge className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">You</Badge>}
+                          {row.rank && <Badge variant="secondary" className="bg-zinc-800 text-zinc-300">{row.rank}</Badge>}
+                        </div>
+                        {row.error ? (
+                          <p className="text-sm text-red-400 mt-1">{row.error}</p>
+                        ) : (
+                          <p className="text-sm text-zinc-500 mt-1">Max rating {row.maxRating ?? 'N/A'}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-center min-w-20">
+                        <div className="text-zinc-500 text-xs">Rating</div>
+                        <div className="text-zinc-100 font-semibold">{row.rating ?? 'N/A'}</div>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-center min-w-20">
+                        <div className="text-zinc-500 text-xs">Solved</div>
+                        <div className="text-zinc-100 font-semibold">{row.solvedCount}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
 
         {/* Daily Block */}
         <Card className="bg-zinc-900 border-zinc-800">
@@ -218,7 +305,7 @@ export default function Dashboard() {
           <CardContent>
             {!stats.currentBlock || stats.currentBlock.length === 0 ? (
               <div className="text-center py-12 text-zinc-500">
-                <p>No active block. Click "Sync CF" to generate your first block of problems!</p>
+                <p>No active block. Click &quot;Sync CF&quot; to generate your first block of problems!</p>
                 <Button onClick={syncProgress} disabled={syncing} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white">
                   {syncing ? 'Generating...' : 'Generate Block'}
                 </Button>

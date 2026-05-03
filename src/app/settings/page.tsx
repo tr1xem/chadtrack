@@ -16,31 +16,32 @@ export default function SettingsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [cfHandle, setCfHandle] = useState('');
+  const [friends, setFriends] = useState('');
   const [targetRating, setTargetRating] = useState('');
   const [customDailyGoal, setCustomDailyGoal] = useState('');
 
   useEffect(() => {
-    fetchUser();
-  }, []);
-
-  const fetchUser = async () => {
-    try {
-      const res = await fetch('/api/auth/me');
-      if (!res.ok) {
+    void (async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) {
+          router.push('/login');
+          return;
+        }
+        const data = await res.json();
+        setCfHandle(data.user.cfHandle);
+        setFriends(Array.isArray(data.user.friends) ? data.user.friends.join(', ') : '');
+        setTargetRating(data.user.targetRating.toString());
+        if (data.user.customDailyGoal) {
+          setCustomDailyGoal(data.user.customDailyGoal.toString());
+        }
+      } catch {
         router.push('/login');
-        return;
+      } finally {
+        setLoading(false);
       }
-      const data = await res.json();
-      setCfHandle(data.user.cfHandle);
-      setTargetRating(data.user.targetRating.toString());
-      if (data.user.customDailyGoal) {
-        setCustomDailyGoal(data.user.customDailyGoal.toString());
-      }
-      setLoading(false);
-    } catch (e) {
-      router.push('/login');
-    }
-  };
+    })();
+  }, []);
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -52,7 +53,7 @@ export default function SettingsPage() {
       const res = await fetch('/api/auth/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cfHandle, targetRating, customDailyGoal }),
+        body: JSON.stringify({ cfHandle, targetRating, customDailyGoal, friends }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -60,7 +61,7 @@ export default function SettingsPage() {
       } else {
         setError(data.error);
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred');
     } finally {
       setSaving(false);
@@ -126,7 +127,19 @@ export default function SettingsPage() {
                   required 
                   className="bg-zinc-800 border-zinc-700" 
                 />
-                <p className="text-xs text-zinc-500">The rating 'X' around which problem blocks are generated. Minimum is 800.</p>
+                <p className="text-xs text-zinc-500">The rating &apos;X&apos; around which problem blocks are generated. Minimum is 800.</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="friends">Vs Friends</Label>
+                <Input
+                  id="friends"
+                  value={friends}
+                  onChange={(e) => setFriends(e.target.value)}
+                  placeholder="tourist, petr, ecnerwala"
+                  className="bg-zinc-800 border-zinc-700"
+                />
+                <p className="text-xs text-zinc-500">Comma-separated Codeforces handles for the leaderboard.</p>
               </div>
 
               <div className="space-y-2">
